@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Birthday Guesser</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <div class="container">
+        <h1>🎂 Birthday Guesser</h1>
+        <div id="game-area">
+            <p id="instruction">Think of your birthday. I'll guess it with yes/no questions!</p>
+            <div id="question-container" class="hidden">
+                <p id="question-text"></p>
+                <div class="button-group">
+                    <button id="yes-btn" class="btn btn-yes">Yes</button>
+                    <button id="no-btn" class="btn btn-no">No</button>
+                </div>
+            </div>
+            <button id="start-btn" class="btn btn-start">Start Game</button>
+            <div id="result" class="hidden"></div>
+            <div id="progress"></div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
