@@ -11,6 +11,7 @@ class BirthdayGuesser {
         this.dayRange = [1, 31];
         this.foundMonth = null;
         this.questionsAsked = 0;
+        this.maxQuestions = 9;
         
         this.initializeEventListeners();
     }
@@ -44,6 +45,11 @@ class BirthdayGuesser {
     }
     
     askMonthQuestion() {
+        if (this.questionsAsked >= this.maxQuestions) {
+            this.forceResult();
+            return;
+        }
+        
         this.questionsAsked++;
         const [low, high] = this.monthRange;
         
@@ -53,11 +59,11 @@ class BirthdayGuesser {
             return;
         }
         
-        const mid = Math.floor((low + high) / 2);
-        const secondHalfStart = mid + 1;
+        // Optimized: Use ceiling instead of floor to balance the search
+        const mid = Math.ceil((low + high) / 2);
         
-        const question = `Is your birth month in the second half of ${this.months[low]} to ${this.months[high]}?`;
-        const clarification = `(${this.months[secondHalfStart]} to ${this.months[high]})`;
+        const question = `Is your birth month in ${this.months[mid]} to ${this.months[high]}?`;
+        const clarification = `(Months ${mid + 1}-${high + 1})`;
         
         this.showQuestion(question, clarification);
     }
@@ -69,6 +75,11 @@ class BirthdayGuesser {
     }
     
     askDayQuestion() {
+        if (this.questionsAsked >= this.maxQuestions) {
+            this.forceResult();
+            return;
+        }
+        
         this.questionsAsked++;
         const [low, high] = this.dayRange;
         
@@ -77,16 +88,25 @@ class BirthdayGuesser {
             return;
         }
         
-        if (low === high - 1) {
+        // For the last 2 questions, use direct comparison instead of binary search
+        const remainingQuestions = this.maxQuestions - this.questionsAsked;
+        if (remainingQuestions <= 1 && (high - low) > 1) {
+            // Use linear search for the final questions to guarantee completion
+            this.dayRange = [low, low];
             this.showQuestion(`Is your birth day ${low}?`);
             return;
         }
         
-        const mid = Math.floor((low + high) / 2);
-        this.showQuestion(`Is your birth day greater than ${mid}?`);
+        const mid = Math.ceil((low + high) / 2);
+        this.showQuestion(`Is your birth day greater than ${mid - 1}?`);
     }
     
     handleAnswer(isYes) {
+        if (this.questionsAsked >= this.maxQuestions) {
+            this.forceResult();
+            return;
+        }
+        
         if (this.currentPhase === 'month') {
             this.handleMonthAnswer(isYes);
         } else {
@@ -97,11 +117,12 @@ class BirthdayGuesser {
     
     handleMonthAnswer(isYes) {
         let [low, high] = this.monthRange;
+        const mid = Math.ceil((low + high) / 2);
         
         if (isYes) {
-            this.monthRange = [Math.floor((low + high) / 2) + 1, high];
+            this.monthRange = [mid, high];
         } else {
-            this.monthRange = [low, Math.floor((low + high) / 2)];
+            this.monthRange = [low, mid - 1];
         }
         
         this.askMonthQuestion();
@@ -110,19 +131,26 @@ class BirthdayGuesser {
     handleDayAnswer(isYes) {
         let [low, high] = this.dayRange;
         
-        if (low === high - 1) {
-            // Final question between two days
-            this.dayRange = [isYes ? low : high, isYes ? low : high];
-            this.askDayQuestion();
-        } else {
-            const mid = Math.floor((low + high) / 2);
+        // Check if we're in linear search mode for final questions
+        if (low === high) {
             if (isYes) {
-                this.dayRange = [mid + 1, high];
+                this.showResult();
             } else {
-                this.dayRange = [low, mid];
+                this.dayRange = [low + 1, high + 1];
+                this.askDayQuestion();
             }
-            this.askDayQuestion();
+            return;
         }
+        
+        const mid = Math.ceil((low + high) / 2);
+        
+        if (isYes) {
+            this.dayRange = [mid, high];
+        } else {
+            this.dayRange = [low, mid - 1];
+        }
+        
+        this.askDayQuestion();
     }
     
     showQuestion(question, clarification = '') {
@@ -132,7 +160,29 @@ class BirthdayGuesser {
     
     showResult() {
         const resultElement = document.getElementById('result');
-        resultElement.textContent = `🎉 Your birthday is ${this.months[this.foundMonth]} ${this.dayRange[0]}!`;
+        if (this.foundMonth !== null && this.dayRange[0] <= this.daysInMonth[this.foundMonth]) {
+            resultElement.textContent = `🎉 Your birthday is ${this.months[this.foundMonth]} ${this.dayRange[0]}!`;
+        } else {
+            resultElement.textContent = `🎉 I've narrowed it down! Your birthday is around ${this.months[this.foundMonth || 0]}`;
+        }
+        resultElement.textContent += ` (used ${this.questionsAsked} questions)`;
+        resultElement.classList.remove('hidden');
+        
+        document.getElementById('start-btn').textContent = 'Play Again';
+        document.getElementById('start-btn').classList.remove('hidden');
+        document.getElementById('question-container').classList.add('hidden');
+    }
+    
+    forceResult() {
+        // When we hit the question limit, show the best guess
+        const resultElement = document.getElementById('result');
+        if (this.foundMonth !== null) {
+            const approximateDay = Math.ceil((this.dayRange[0] + this.dayRange[1]) / 2);
+            resultElement.textContent = `🔍 I believe your birthday is around ${this.months[this.foundMonth]} ${approximateDay} (used all ${this.questionsAsked} questions)`;
+        } else {
+            const approximateMonth = Math.ceil((this.monthRange[0] + this.monthRange[1]) / 2);
+            resultElement.textContent = `🔍 I believe your birthday is around ${this.months[approximateMonth]} (used all ${this.questionsAsked} questions)`;
+        }
         resultElement.classList.remove('hidden');
         
         document.getElementById('start-btn').textContent = 'Play Again';
@@ -142,41 +192,11 @@ class BirthdayGuesser {
     
     updateProgress() {
         const progressElement = document.getElementById('progress');
-        progressElement.textContent = `Questions asked: ${this.questionsAsked}`;
+        progressElement.textContent = `Questions: ${this.questionsAsked}/${this.maxQuestions}`;
     }
 }
-
-// Create app manifest for PWA
-const manifest = {
-    "name": "Birthday Guesser",
-    "short_name": "BdayGuesser",
-    "description": "Guess your birthday with binary search",
-    "start_url": "/",
-    "display": "standalone",
-    "background_color": "#667eea",
-    "theme_color": "#764ba2",
-    "icons": [
-        {
-            "src": "icon-192.png",
-            "sizes": "192x192",
-            "type": "image/png"
-        },
-        {
-            "src": "icon-512.png",
-            "sizes": "512x512",
-            "type": "image/png"
-        }
-    ]
-};
 
 // Initialize the app when page loads
 document.addEventListener('DOMContentLoaded', () => {
     new BirthdayGuesser();
-    
-    // Register service worker for PWA functionality
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js')
-            .then(() => console.log('Service Worker Registered'))
-            .catch(err => console.log('Service Worker registration failed'));
-    }
 });
