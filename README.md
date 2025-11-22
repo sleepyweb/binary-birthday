@@ -3,7 +3,8 @@
 A clever web app that guesses your birthday using the binary search algorithm with minimal questions!
 
 ## 🚀 Live Demo
-[Link to GitHub Pages]
+[Birthday Guesser](https://sleepyweb.github.io/binary-birthday/)
+
 
 ## 🧠 How It Works
 - Uses binary search to find the month (4 questions max)
