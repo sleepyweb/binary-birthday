@@ -165,7 +165,6 @@ class BirthdayGuesser {
         } else {
             resultElement.textContent = `🎉 I've narrowed it down! Your birthday is around ${this.months[this.foundMonth || 0]}`;
         }
-        resultElement.textContent += ` (used ${this.questionsAsked} questions)`;
         resultElement.classList.remove('hidden');
         
         document.getElementById('start-btn').textContent = 'Play Again';
