@@ -45,12 +45,6 @@ class BirthdayGuesser {
     }
     
     askMonthQuestion() {
-        if (this.questionsAsked >= this.maxQuestions) {
-            this.forceResult();
-            return;
-        }
-        
-        this.questionsAsked++;
         const [low, high] = this.monthRange;
         
         if (low === high) {
@@ -59,11 +53,10 @@ class BirthdayGuesser {
             return;
         }
         
-        // Optimized: Use ceiling instead of floor to balance the search
-        const mid = Math.ceil((low + high) / 2);
+        const mid = Math.floor((low + high) / 2);
         
-        const question = `Is your birth month in ${this.months[mid]} to ${this.months[high]}?`;
-        const clarification = `(Months ${mid + 1}-${high + 1})`;
+        const question = `Is your birth month in the second half of ${this.months[low]} to ${this.months[high]}?`;
+        const clarification = `(${this.months[mid + 1]} to ${this.months[high]})`;
         
         this.showQuestion(question, clarification);
     }
@@ -75,54 +68,45 @@ class BirthdayGuesser {
     }
     
     askDayQuestion() {
-        if (this.questionsAsked >= this.maxQuestions) {
-            this.forceResult();
-            return;
-        }
-        
-        this.questionsAsked++;
         const [low, high] = this.dayRange;
         
+        // If we're down to one day, we're done
         if (low === high) {
             this.showResult();
             return;
         }
         
-        // For the last 2 questions, use direct comparison instead of binary search
-        const remainingQuestions = this.maxQuestions - this.questionsAsked;
-        if (remainingQuestions <= 1 && (high - low) > 1) {
-            // Use linear search for the final questions to guarantee completion
-            this.dayRange = [low, low];
+        // If we're down to two days, ask about the first one directly
+        if (high - low === 1) {
             this.showQuestion(`Is your birth day ${low}?`);
             return;
         }
         
-        const mid = Math.ceil((low + high) / 2);
-        this.showQuestion(`Is your birth day greater than ${mid - 1}?`);
+        // Otherwise, use binary search
+        const mid = Math.floor((low + high) / 2);
+        this.showQuestion(`Is your birth day greater than ${mid}?`);
     }
     
     handleAnswer(isYes) {
-        if (this.questionsAsked >= this.maxQuestions) {
-            this.forceResult();
-            return;
-        }
+        // INCREMENT THE COUNTER HERE - only once per answer
+        this.questionsAsked++;
+        this.updateProgress();
         
         if (this.currentPhase === 'month') {
             this.handleMonthAnswer(isYes);
         } else {
             this.handleDayAnswer(isYes);
         }
-        this.updateProgress();
     }
     
     handleMonthAnswer(isYes) {
         let [low, high] = this.monthRange;
-        const mid = Math.ceil((low + high) / 2);
+        const mid = Math.floor((low + high) / 2);
         
         if (isYes) {
-            this.monthRange = [mid, high];
+            this.monthRange = [mid + 1, high];
         } else {
-            this.monthRange = [low, mid - 1];
+            this.monthRange = [low, mid];
         }
         
         this.askMonthQuestion();
@@ -131,26 +115,38 @@ class BirthdayGuesser {
     handleDayAnswer(isYes) {
         let [low, high] = this.dayRange;
         
-        // Check if we're in linear search mode for final questions
-        if (low === high) {
-            if (isYes) {
-                this.showResult();
-            } else {
-                this.dayRange = [low + 1, high + 1];
-                this.askDayQuestion();
+        const questionText = document.getElementById('question-text').textContent;
+        
+        // Handle direct "Is it X?" questions
+        if (questionText.includes('Is your birth day') && questionText.includes('?')) {
+            const dayMatch = questionText.match(/Is your birth day (\d+)\?/);
+            if (dayMatch) {
+                const askedDay = parseInt(dayMatch[1]);
+                if (isYes) {
+                    this.dayRange = [askedDay, askedDay];
+                    this.showResult();
+                } else {
+                    this.dayRange = [askedDay + 1, high];
+                    this.askDayQuestion();
+                }
+                return;
             }
-            return;
         }
         
-        const mid = Math.ceil((low + high) / 2);
-        
-        if (isYes) {
-            this.dayRange = [mid, high];
-        } else {
-            this.dayRange = [low, mid - 1];
+        // Handle "greater than" questions
+        if (questionText.includes('greater than')) {
+            const gtMatch = questionText.match(/greater than (\d+)\?/);
+            if (gtMatch) {
+                const threshold = parseInt(gtMatch[1]);
+                if (isYes) {
+                    this.dayRange = [threshold + 1, high];
+                } else {
+                    this.dayRange = [low, threshold];
+                }
+                this.askDayQuestion();
+                return;
+            }
         }
-        
-        this.askDayQuestion();
     }
     
     showQuestion(question, clarification = '') {
@@ -160,28 +156,7 @@ class BirthdayGuesser {
     
     showResult() {
         const resultElement = document.getElementById('result');
-        if (this.foundMonth !== null && this.dayRange[0] <= this.daysInMonth[this.foundMonth]) {
-            resultElement.textContent = `🎉 Your birthday is ${this.months[this.foundMonth]} ${this.dayRange[0]}!`;
-        } else {
-            resultElement.textContent = `🎉 I've narrowed it down! Your birthday is around ${this.months[this.foundMonth || 0]}`;
-        }
-        resultElement.classList.remove('hidden');
-        
-        document.getElementById('start-btn').textContent = 'Play Again';
-        document.getElementById('start-btn').classList.remove('hidden');
-        document.getElementById('question-container').classList.add('hidden');
-    }
-    
-    forceResult() {
-        // When we hit the question limit, show the best guess
-        const resultElement = document.getElementById('result');
-        if (this.foundMonth !== null) {
-            const approximateDay = Math.ceil((this.dayRange[0] + this.dayRange[1]) / 2);
-            resultElement.textContent = `🔍 I believe your birthday is around ${this.months[this.foundMonth]} ${approximateDay} (used all ${this.questionsAsked} questions)`;
-        } else {
-            const approximateMonth = Math.ceil((this.monthRange[0] + this.monthRange[1]) / 2);
-            resultElement.textContent = `🔍 I believe your birthday is around ${this.months[approximateMonth]} (used all ${this.questionsAsked} questions)`;
-        }
+        resultElement.textContent = `🎉 Your birthday is ${this.months[this.foundMonth]} ${this.dayRange[0]}!`;
         resultElement.classList.remove('hidden');
         
         document.getElementById('start-btn').textContent = 'Play Again';
