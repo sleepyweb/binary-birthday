@@ -14,12 +14,42 @@ class BirthdayGuesser {
         this.maxQuestions = 9;
         
         this.initializeEventListeners();
+        this.initializeTheme(); // Add theme initialization
     }
     
     initializeEventListeners() {
         document.getElementById('start-btn').addEventListener('click', () => this.startGame());
         document.getElementById('yes-btn').addEventListener('click', () => this.handleAnswer(true));
         document.getElementById('no-btn').addEventListener('click', () => this.handleAnswer(false));
+        
+        // Add theme toggle listener
+        document.getElementById('theme-toggle').addEventListener('click', () => this.toggleTheme());
+    }
+    
+    initializeTheme() {
+        // Check for saved theme preference or default to light
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        this.setTheme(savedTheme);
+    }
+    
+    toggleTheme() {
+        const currentTheme = document.body.classList.contains('dark-theme') ? 'dark' : 'light';
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        this.setTheme(newTheme);
+    }
+    
+    setTheme(theme) {
+        const themeToggle = document.getElementById('theme-toggle');
+        
+        if (theme === 'dark') {
+            document.body.classList.add('dark-theme');
+            themeToggle.textContent = '☀️'; // Sun icon for light mode
+            localStorage.setItem('theme', 'dark');
+        } else {
+            document.body.classList.remove('dark-theme');
+            themeToggle.textContent = '🌙'; // Moon icon for dark mode
+            localStorage.setItem('theme', 'light');
+        }
     }
     
     startGame() {
@@ -155,14 +185,48 @@ class BirthdayGuesser {
     }
     
     showResult() {
-        const resultElement = document.getElementById('result');
-        resultElement.textContent = `🎉 Your birthday is ${this.months[this.foundMonth]} ${this.dayRange[0]}!`;
-        resultElement.classList.remove('hidden');
+    const resultElement = document.getElementById('result');
+    resultElement.textContent = `🎉 Your birthday is ${this.months[this.foundMonth]} ${this.dayRange[0]}!`;
+    resultElement.classList.remove('hidden');
+    
+    // Add confetti celebration
+    this.celebrate();
+    
+    document.getElementById('start-btn').textContent = 'Play Again';
+    document.getElementById('start-btn').classList.remove('hidden');
+    document.getElementById('question-container').classList.add('hidden');
+}
+
+celebrate() {
+    // Simple confetti effect using canvas-confetti library
+    if (typeof confetti === 'function') {
+        confetti({
+            particleCount: 150,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff']
+        });
         
-        document.getElementById('start-btn').textContent = 'Play Again';
-        document.getElementById('start-btn').classList.remove('hidden');
-        document.getElementById('question-container').classList.add('hidden');
+        // Additional burst after short delay
+        setTimeout(() => {
+            confetti({
+                particleCount: 100,
+                angle: 60,
+                spread: 55,
+                origin: { x: 0 }
+            });
+        }, 250);
+        
+        setTimeout(() => {
+            confetti({
+                particleCount: 100,
+                angle: 120,
+                spread: 55,
+                origin: { x: 1 }
+            });
+        }, 400);
     }
+}
     
     updateProgress() {
         const progressElement = document.getElementById('progress');
